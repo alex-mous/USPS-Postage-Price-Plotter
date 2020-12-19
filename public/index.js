@@ -293,9 +293,9 @@ window.onload = () => {
             length: 5,
             height: 1,
             price: 0, //0-...
-            machinable: false, //TRUE/FALSE
+            machinable: "TRUE", //TRUE/FALSE
             serviceType: "ALL", //ALL, PRIORITY, FIRST CLASS
-            packageType: "LETTER" //LETTER, LARGEENVELOPE, PACKAGE, FLATRATE
+            packageType: "ALL" //LETTER, LARGEENVELOPE, PACKAGE, FLATRATE
         }
     } else {
         packageDetails = JSON.parse(packageDetails);

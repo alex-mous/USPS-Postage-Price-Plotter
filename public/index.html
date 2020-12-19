@@ -31,20 +31,19 @@
             </nav>
             <div class="tab-content">
                 <div class="tab-pane fade show active" id="options" role="tabpanel">
-                    <form class="needs-validation row p-0 m-0" id="inputForm">
-                        <div class="col-12 col-sm-6">
-                                <div class="text-center font-weight-bold">
-                                    <span class="">Origin</span>
+                    <form class="form-inline row p-0 m-0" id="inputForm">
+                        <div class="col-12 col-sm-6 col-md-4">
+                                <div class="text-center">
+                                    <span class="font-weight-bold">Origin</span>
+                                    <div class="font-italic">Enter zip code or move marker on map</div>
                                 </div>
                                 <div class="text-center my-1">
-                                    <input type="text" class="input-group-append form-control" name="originZipCode" id="originZipCode" placeholder="Zip Code" aria-label="Origin Zip Code" required>
-                                    <div class="invalid-feedback">
-                                        Please enter a valid zip code
-                                    </div>
+                                    <input type="text" class="w-100 input-group-append form-control" name="originZipCode" id="originZipCode" placeholder="Zip Code" aria-label="Origin Zip Code" required>
                                 </div>
                                 <hr>
-                                <div class="text-center font-weight-bold">
-                                    <span class="">Destination</span>
+                                <div class="text-center">
+                                    <span class="font-weight-bold">Destination</span>
+                                    <div class="font-italic">Enter zip code/country or click on map/move marker</div>
                                 </div>
                                 <div class="btn-group btn-group-toggle w-100 my-1" data-toggle="buttons">
                                     <label class="btn btn-sm btn-secondary active">
@@ -56,17 +55,14 @@
                                 </div>
                                 <span class="mt-1 shippingDestForms">
                                     <div class="text-center">
-                                        <span class="font-weight-light">Destination Zip Code</span>
-                                        <input type="text" class="input-group-append form-control" id="destZipCode" name="destZipCode" placeholder="Zip Code" aria-label="Destination Zip Code" required>
-                                        <div class="invalid-feedback">
-                                            Please enter a valid zip code
-                                        </div>
+                                        <div class="font-weight-light">Destination Zip Code</div>
+                                        <input type="text" class="form-control w-100" id="destZipCode" name="destZipCode" placeholder="Zip Code" aria-label="Destination Zip Code" required>
                                     </div>
                                 </span>
                                 <span class="d-none mt-1 shippingDestForms">
                                     <div class="text-center">
-                                        <span class="font-weight-light">Destination Country</span>
-                                        <select class="form-control" id="destCountry" name="destCountry" required disabled>
+                                        <div class="font-weight-light">Destination Country</div>
+                                        <select class="form-control w-100" id="destCountry" name="destCountry" required disabled>
                                             <option value="AF">Afghanistan</option>
                                             <option value="AX">Åland Islands</option>
                                             <option value="AL">Albania</option>
@@ -319,25 +315,24 @@
                                         </select>
                                     </div>
                                 </span>
+                                <hr>
+                                <div class="text-center">
+                                    <div class="font-weight-bold">Content Value ($)</div>
+                                </div>
+                                <div class="text-center my-1">
+                                    <input type="text" class="w-100 form-control" name="contentValue" id="contentValue" placeholder="Content Value" aria-label="Content Value">
+                                </div>
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6 col-md-4">
                                 <hr class="d-sm-none d-block">
                                 <div class="text-center">
                                     <div class="font-weight-bold">Dimensions</div>
-                                    <div class="font-italic">(Inches) Optional</div>
+                                    <div class="font-italic">Inches, LxWxH</div>
                                 </div>
                                 <div class="text-center my-1">
-                                    <input type="text" class="input-group-append form-control" name="length" id="lengthInpt" placeholder="Length (in)" aria-label="Length">
-                                    <input type="text" class="input-group-append form-control" name="width" id="widthInpt" placeholder="Width (in)" aria-label="Width">
-                                    <input type="text" class="input-group-append form-control" name="height" id="heightInpt" placeholder="Height (in)" aria-label="Height">
-                                </div>
-                                <hr>
-                                <div class="text-center">
-                                    <div class="font-weight-bold">Content Value</div>
-                                    <div class="font-italic">($) Required for international mail</div>
-                                </div>
-                                <div class="text-center my-1">
-                                    <input type="text" class="input-group-append form-control" name="contentValue" id="contentValue" placeholder="Content Value" aria-label="Content Value">
+                                    <input type="text" class="w-100 form-control" name="length" id="lengthInpt" placeholder="Length (in)" aria-label="Length">
+                                    <input type="text" class="w-100 form-control" name="width" id="widthInpt" placeholder="Width (in)" aria-label="Width">
+                                    <input type="text" class="w-100 form-control" name="height" id="heightInpt" placeholder="Height (in)" aria-label="Height">
                                 </div>
                                 <hr>
                                 <div class="text-center">
@@ -345,18 +340,17 @@
                                 </div>
                                 <div class="text-center my-1">
                                     <label class="font-weight-bold" for="poundsRange">Pounds (0 to 69)</label>
-                                    <p><span id="poundsRangeTxt"></span> pounds</p>
-                                    <input class="form-control" type="range" id="poundsRange" name="pounds" min="0" max="69" step="1">
+                                    <input class="form-control" type="range" id="poundsRange" name="pounds" min="0" max="69" step="1"><span class="pl-2" id="poundsRangeTxt"></span>
                                 </div>
                                 <div class="text-center my-1">
                                     <label class="font-weight-bold" for="ouncesRange">Ounces (0.5 to 16)</label>
-                                    <p><span id="ouncesRangeTxt"></span> ounces</p>
-                                    <input class="form-control" type="range" id="ouncesRange" name="ounces" min="0.5" max="16" step="0.5">
+                                    <input class="form-control" type="range" id="ouncesRange" name="ounces" min="0.5" max="16" step="0.5"><span class="pl-2" id="ouncesRangeTxt"></span>
                                 </div>
-                                <hr>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4">
+                                <hr class="d-sm-none d-block">
                                 <div class="text-center">
                                     <span class="font-weight-bold">Mail Type</span>
-                                    <div class="font-italic">For services All and First Class only</div>
                                 </div>
                                 <div class="btn-group btn-group-toggle w-100 my-1" data-toggle="buttons">
                                     <label class="btn btn-sm btn-secondary">
@@ -444,7 +438,7 @@
                         |
                     </span>
                     <span class="d-flex px-2">
-                        Information provided by <a href="https://www.usps.com" target="_blank" rel="nofollow">www.usps.com</a>
+                        Information provided by&nbsp<a href="https://www.usps.com" target="_blank" rel="nofollow">www.usps.com</a>
                     </span>
                 </div>
             </div>
