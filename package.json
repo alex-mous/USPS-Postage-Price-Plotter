@@ -1,0 +1,16 @@
+{
+  "name": "us-shipping-calculator",
+  "version": "1.0.0",
+  "description": "Shipping calculator for domestic and international shipping with a map interface",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Alex Mous",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1",
+    "xml2js": "^0.4.23"
+  }
+}
