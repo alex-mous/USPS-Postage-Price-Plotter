@@ -157,6 +157,7 @@ const getAPIData = (apiName, xmlReq) => {
 
 exports.handler = async (ev, context) => {
     console.log(ev.headers);
+    console.log(process.env.USPS_ID);
     if (ev.headers["content-type"] != "application/json") {
         return {
             statusCode: 400,
