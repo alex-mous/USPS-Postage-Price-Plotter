@@ -1,24 +1,12 @@
 const parseString = require("xml2js").parseString;
-const https = require("https");
-const http = require("http");
-const express = require("express");
 const fetch = require("node-fetch");
-const fs = require("fs");
 const { URLSearchParams } = require("url");
 
-const config = require("./config.json");
+const config = require("../config.json");
 
 const baseUrl = "http://production.shippingapis.com/ShippingAPI.dll"; //Base URL
-const HTTPS_PORT = "443"; //Web port for HTTPS server
-const HTTP_PORT = "80"; //Web port for HTTP redirect
-const HOST_NAME = "0.0.0.0";
 
-const app = express();
 
-let sslOpts = { //SSL for PWA installation
-	key: fs.readFileSync(config.KEY_FILE),
-	cert: fs.readFileSync(config.CRT_FILE),
-}
 
 /**
  * Get the price based on a country
@@ -66,15 +54,11 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
     let firstClassMailType = ""; //Default to not a FCM type
     let machinable = ""; //Package machinability (First Class Letters ONLY)
     console.log(weight);
-    if (weight.serviceType.toUpperCase() == "FIRST CLASS" || weight.packageType.toUpperCase() == "POSTCARD") {
+    if (weight.serviceType.toUpperCase() == "FIRST CLASS") {
         switch (weight.packageType.toUpperCase()) {
             case "LETTER":
                 firstClassMailType = weight.packageType;
                 machinable = weight.machinable;
-                break;
-            case "POSTCARD":
-                firstClassMailType = weight.packageType;
-                weight.serviceType = "FIRST CLASS"; //Postcards on FCM only
                 break;
             case "LARGEENVELOPE":
                 firstClassMailType = "FLAT";
@@ -84,7 +68,14 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
                 break;
         }
         weight.packageType = ""; //Reset package type
+    } else if (weight.serviceType.toUpperCase() == "ALL") {
+        machinable = weight.machinable;
     }
+    if (weight.packageType.toUpperCase() == "POSTCARD") {
+        firstClassMailType = weight.packageType;
+        weight.serviceType = "FIRST CLASS"; //Postcards on FCM only
+    }
+
     
     if (weight.serviceType.toUpperCase() == "PRIORITY") {
         let xmlBody = `\
@@ -168,48 +159,61 @@ const getAPIData = (apiName, xmlReq) => {
     });
 }
 
-/* Web Server */
-app.use(express.static("public"));
-
-app.use(express.json());
-
-//Redirect GET requests to home page
-app.get("*", (_, res) => {
-    res.redirect("/index.html");
-});
-
-//API POST request
-app.post("/api/:method", (req, res) => {
-    if (req.params.method.toLowerCase() == "price") { //price request
-        switch (req.body.type.toLowerCase()) {
-            case "international": //International
-                getInternationalPrice(req.body.country, req.body.weight)
-                    .then((resp) => {
-                        res.status(200).end(JSON.stringify(resp));
-                    });
-                break;
-            case "domestic":
-                getDomesticPrice(req.body.zipStart, req.body.zipEnd, req.body.weight)
-                    .then((resp) => {
-                        res.status(200).end(JSON.stringify(resp));
-                    });
-                break;
-            default:
-                res.sendStatus(401);
+exports.handler = async (ev, context) => {
+    console.log(ev.headers);
+    if (ev.headers["content-type"] != "application/json") {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({err:"Cannot parse content type other than JSON"})
         }
     }
-});
-
-https.createServer(sslOpts, app).listen(HTTPS_PORT, HOST_NAME, () => { //Create HTTPS server
-	console.log(`App listening on port ${HTTPS_PORT}`);
-});
-
-//Redirect HTTP to HTTPS server
-http.createServer((req, res) => {
-    res.writeHead(301, {
-        "Location": `https://${req.headers.host}`
-    });
-    res.end();
-}).listen(HTTP_PORT, HOST_NAME, () => {
-    console.log(`Redirector listening on port ${HTTP_PORT}`);
-});
+    let body = JSON.parse(ev.body);
+    let resp;
+    switch (body.type.toLowerCase()) {
+        case "international": //International
+            try {
+                if (!body.country || !body.weight) {
+                    return {
+                        statusCode: 400,
+                        body: JSON.stringify({err:"International requests must include both country string and weight object"})
+                    }
+                }
+                resp = await getInternationalPrice(body.country, body.weight)
+            } catch (e) {
+                console.log("Error! ", e);
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({err:"Error in processing request"})
+                }
+            }
+            return {
+                statusCode: 200,
+                body: JSON.stringify(resp)
+            }
+        case "domestic":
+            try {
+                if (!body.zipStart || !body.zipEnd || !body.weight) {
+                    return {
+                        statusCode: 400,
+                        body: JSON.stringify({err:"Domestic requests must include starting and ending zip strings and weight object"})
+                    }
+                }
+                resp = await getDomesticPrice(body.zipStart, body.zipEnd, body.weight)
+            } catch (e) {
+                console.log("Error! ", e);
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({err:"Error in processing request"})
+                }
+            }
+            return {
+                statusCode: 200,
+                body: JSON.stringify(resp)
+            }
+        default:
+            return {
+                statusCode: 400,
+                body: JSON.stringify({err:"Type must be either domestic or international"})
+            }
+    }
+}

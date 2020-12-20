@@ -1,2 +1,9 @@
 [build]
     publish = "public/"
+    functions = "functions/"
+
+[[redirects]]
+    from = "/api/:splat"
+    to = "/.netlify/functions/:splat"
+    status = 200
+    force = true
