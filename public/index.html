@@ -25,14 +25,14 @@
 		</nav>
         <div id="map" class="map-box"></div>
         <div class="res-box">
-            <nav class="nav nav-tabs justify-content-center" role="tablist">
+            <nav class="nav nav-tabs nav-fill border-bottom border-dark mb-1 font-weight-bold" role="tablist">
                 <a class="nav-itme nav-link active" id="optionsTab" data-toggle="tab" href="#options" role="tab">Options</a>
                 <a class="nav-itme nav-link" id="resultsTab" data-toggle="tab" href="#results" role="tab">Results</a>
             </nav>
             <div class="tab-content">
                 <div class="tab-pane fade show active" id="options" role="tabpanel">
                     <form class="form-inline row p-0 m-0" id="inputForm">
-                        <div class="col-12 col-sm-6 col-md-4">
+                        <div class="col-12 col-sm-6 col-xl-4">
                                 <div class="text-center">
                                     <span class="font-weight-bold">Origin</span>
                                     <div class="font-italic">Enter zip code or move marker on map</div>
@@ -323,11 +323,11 @@
                                     <input type="text" class="w-100 form-control" name="contentValue" id="contentValue" placeholder="Content Value" aria-label="Content Value">
                                 </div>
                         </div>
-                        <div class="col-12 col-sm-6 col-md-4">
+                        <div class="col-12 col-sm-6 col-xl-4">
                                 <hr class="d-sm-none d-block">
                                 <div class="text-center">
                                     <div class="font-weight-bold">Dimensions</div>
-                                    <div class="font-italic">Inches, LxWxH</div>
+                                    <div class="font-italic">Inches, LxWxH (Only for packages)</div>
                                 </div>
                                 <div class="text-center my-1">
                                     <input type="text" class="w-100 form-control" name="length" id="lengthInpt" placeholder="Length (in)" aria-label="Length">
@@ -340,15 +340,15 @@
                                 </div>
                                 <div class="text-center my-1">
                                     <label class="font-weight-bold" for="poundsRange">Pounds (0 to 69)</label>
-                                    <input class="form-control" type="range" id="poundsRange" name="pounds" min="0" max="69" step="1"><span class="pl-2" id="poundsRangeTxt"></span>
+                                    <input class="form-control w-75" type="range" id="poundsRange" name="pounds" min="0" max="69" step="1"><span class="pl-2" id="poundsRangeTxt"></span>
                                 </div>
                                 <div class="text-center my-1">
                                     <label class="font-weight-bold" for="ouncesRange">Ounces (0.5 to 16)</label>
-                                    <input class="form-control" type="range" id="ouncesRange" name="ounces" min="0.5" max="16" step="0.5"><span class="pl-2" id="ouncesRangeTxt"></span>
+                                    <input class="form-control w-75" type="range" id="ouncesRange" name="ounces" min="0.5" max="16" step="0.5"><span class="pl-2" id="ouncesRangeTxt"></span>
                                 </div>
                         </div>
-                        <div class="col-12 col-sm-6 col-md-4">
-                                <hr class="d-sm-none d-block">
+                        <div class="col-12 col-sm-12 col-xl-4">
+                                <hr class="d-xl-none d-block">
                                 <div class="text-center">
                                     <span class="font-weight-bold">Mail Type</span>
                                 </div>
@@ -390,7 +390,7 @@
                                 <hr>
                                 <div class="text-center">
                                     <span class="font-weight-bold">Machinability</span>
-                                    <div class="font-italic">For First Class Letters only</div>
+                                    <div class="font-italic">(Only for First Class Letters and Postcards)</div>
                                 </div>
                                 <div class="btn-group btn-group-toggle w-100 my-1" data-toggle="buttons">
                                     <label class="btn btn-sm btn-secondary">

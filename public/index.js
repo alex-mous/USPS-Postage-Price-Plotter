@@ -3,7 +3,7 @@ const ACCESS_TOKEN = 'pk.eyJ1IjoidHN1aG8iLCJhIjoiY2tpb3Y4YmhsMDBhaTJxbXZnNTB3YjN
 mapboxgl.accessToken = ACCESS_TOKEN;
 const mapboxClient = mapboxSdk({ accessToken: ACCESS_TOKEN });
 const defaultPosition = [-95, 39]; //GPS default position - center US (default Zip - 66052)
-const HOST = "https://postagepriceplotter.see-making.com";
+const HOST = "http://localhost:8888";//"https://postagepriceplotter.see-making.com";
 
 /**
  * Location storage (for starting and ending markers)
@@ -16,9 +16,15 @@ const HOST = "https://postagepriceplotter.see-making.com";
  /**
  * Package information
  * @typedef {Object} PackageDetails
- * @param {number} pounds Weight in pounds (0-)
- * @param {number} country Weight in ounces (0-16)
- * @param {boolean} machinable Package machinability
+ * @param {number} pounds Weight (pounds, 0-69)
+ * @param {number} country Weight (ounces, 0-16)
+ * @param {number} width Width (inches)
+ * @param {number} length Length (inches)
+ * @param {number} height Height (inches)
+ * @param {number} price Shipping item price ($)
+ * @param {string} machinable Package machinability (TRUE/FALSE)
+ * @param {string} serviceType Type of services to select (ALL/PRIORITY/FIRST CLASS)
+ * @param {string} packageType Type of packages/parcels to select (ALL/LETTER/LARGEENVELOPE/PACKAGE/FLATRATE)
  */
 
 /**
@@ -121,25 +127,24 @@ const showShippingInfo = (apiResp) => {
     document.querySelector("#resTable").innerHTML = "";
     $("#optionsTab").tab("dispose");
     $("#resultsTab").tab("show");
+    let msgBx = document.querySelector("#resMsg");
     if (apiResp.err) {
-        document.querySelector("#resMsg").classList.remove("d-none");
-        document.querySelector("#resMsg").innerHTML = "Error: " + apiResp.err;
+        msgBx.classList.remove("d-none");
+        msgBx.classList.add("text-danger");
+        msgBx.innerHTML = "Error: " + apiResp.err;
         return;
     } else {
-        document.querySelector("#resMsg").classList.add("d-none");
+        msgBx.classList.add("d-none");
     }
+    console.log("Received result from API: ", apiResp);
     apiResp.forEach((pkg) => {
         if (pkg.Error) {
             console.log("Error from API: ", pkg.Error);
-            let row = document.createElement("TR");
-            row.innerHTML = `<td colspan='2'>Invalid option combination</td>`;
-            document.querySelector("#resTable").appendChild(row);
             return;
         }
         pkg?.Postage //Domestic
             ?.sort((a,b) => parseFloat(a.Rate[0]) - parseFloat(b.Rate[0]))
             ?.forEach((res) => {
-                if (res.err) document.querySelector("#resMsg").innerHTML = res.err;
                 let row = document.createElement("TR");
                 let name = new DOMParser().parseFromString(res.MailService[0], "text/html").documentElement.textContent; //Parse HTML from escapes
                 row.innerHTML = `<td>${name}</td><td>$${decodeURIComponent(res.Rate[0])}</td>`;
@@ -148,7 +153,6 @@ const showShippingInfo = (apiResp) => {
         pkg?.Service //International
             ?.sort((a,b) => parseFloat(a.Postage[0]) - parseFloat(b.Postage[0]))
             ?.forEach((res) => {
-                if (res.err) document.querySelector("#resMsg").innerHTML = res.err;
                 if (!res.SvcDescription) return; //Not a shipping service
                 let row = document.createElement("TR");
                 let name = new DOMParser().parseFromString(res.SvcDescription[0], "text/html").documentElement.textContent; //Parse HTML from escapes
@@ -156,6 +160,11 @@ const showShippingInfo = (apiResp) => {
                 document.querySelector("#resTable").appendChild(row);
             });
     });
+    if (document.querySelector("#resTable").children.length == 0) {
+        let row = document.createElement("TR");
+        row.innerHTML = `<td colspan='2'>No valid combinations found</td>`;
+        document.querySelector("#resTable").appendChild(row);
+    }
 }
 
 /**
@@ -295,7 +304,7 @@ window.onload = () => {
             price: 0, //0-...
             machinable: "TRUE", //TRUE/FALSE
             serviceType: "ALL", //ALL, PRIORITY, FIRST CLASS
-            packageType: "ALL" //LETTER, LARGEENVELOPE, PACKAGE, FLATRATE
+            packageType: "ALL" //LETTER, POSTCARD, LARGEENVELOPE, PACKAGE, FLATRATE or (FCM) LETTER, FLAT, PACKAGE SERVICE RETAIL, POSTCARD
         }
     } else {
         packageDetails = JSON.parse(packageDetails);
@@ -345,7 +354,6 @@ window.onload = () => {
         updateHomeMarkerLoc(homeMarkerLoc);
         updateDestMarkerLoc(destMarkerLoc);
         map.fitBounds(getBounding(homeMarker, destMarker));
-        getShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails)?.then(res => showShippingInfo(res));
     } else if (navigator.geolocation) { //Check support and ensure markers aren't persisted
         navigator.geolocation.getCurrentPosition((res) => {
             if (res.coords) {

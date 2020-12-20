@@ -31,9 +31,34 @@ const getInternationalPrice = (country, weight) => {
     return new Promise((resolve, reject) => {
         getAPIData(apiName, xmlBody).then((res) => {
             if (!res) reject();
-            resolve(res.IntlRateV4Response.Package);
+            if (res.Error) reject(res.Error);
+            resolve(res.IntlRateV2Response.Package);
         });
     });
+}
+
+
+/**
+ * Convert package type into applicable First Class Mail types
+ * 
+ * @param {string} pkgType Package type name
+ * @returns {Array<string>} FCM types as array
+ */
+const getFCMType = (pkgType) => {
+    switch (pkgType.toUpperCase()) {
+        case "LETTER":
+            return ["LETTER"];
+        case "LARGEENVELOPE":
+            return ["FLAT"];
+        case "PACKAGE":
+            return ["PACKAGE SERVICE RETAIL"];
+        case "ALL":
+            return ["LETTER", "FLAT", "POSTCARD", "PACKAGE SERVICE RETAIL"];
+        case "POSTCARD":
+            return ["POSTCARD"];
+        default:
+            return [];
+    }
 }
 
 /**
@@ -47,84 +72,111 @@ const getInternationalPrice = (country, weight) => {
  */
 const getDomesticPrice = (zipStart, zipEnd, weight) => {
     let apiName = "RateV4"; //Name of API
-    let firstClassMailType = ""; //Default to not a FCM type
-    let machinable = ""; //Package machinability (First Class Letters ONLY)
-    console.log(weight);
-    if (weight.serviceType.toUpperCase() == "FIRST CLASS") {
-        switch (weight.packageType.toUpperCase()) {
-            case "LETTER":
-                firstClassMailType = weight.packageType;
-                machinable = weight.machinable;
-                break;
-            case "LARGEENVELOPE":
-                firstClassMailType = "FLAT";
-                break;
-            case "PACKAGE":
-                firstClassMailType = "PACKAGE SERVICE RETAIL";
-                break;
-        }
-        weight.packageType = ""; //Reset package type
-    } else if (weight.serviceType.toUpperCase() == "ALL") {
-        machinable = weight.machinable;
-    }
-    if (weight.packageType.toUpperCase() == "POSTCARD") {
-        firstClassMailType = weight.packageType;
-        weight.serviceType = "FIRST CLASS"; //Postcards on FCM only
+
+    let packages = []; //Store multiple requests
+
+    if (weight.serviceType.toUpperCase() == "FIRST CLASS" || weight.packageType.toUpperCase() == "POSTCARD") {
+        getFCMType(weight.packageType).forEach((fcmType) => {
+            packages.push({
+                ...weight,
+                firstClassMailType: fcmType,
+                container: "VARIABLE"
+            });
+        });
+    } else if (weight.serviceType.toUpperCase() == "PRIORITY") {
+        ["Priority", "Priority Mail Express"].forEach((servType) => {
+            if (weight.packageType.toUpperCase() == "FLATRATE") {
+                ["FLAT RATE ENVELOPE", "PADDED FLAT RATE ENVELOPE", "LEGAL FLAT RATE ENVELOPE", "SM FLAT RATE ENVELOPE", "WINDOW FLAT RATE ENVELOPE", "GIFT CARD FLAT RATE ENVELOPE", "SM FLAT RATE BOX", "MD FLAT RATE BOX", "LG FLAT RATE BOX"].forEach((flatType) => {
+                    packages.push({
+                        ...weight,
+                        serviceType: servType,
+                        firstClassMailType: "",
+                        machinable: "",
+                        container: flatType
+                    });
+                });
+            } else {
+                packages.push({
+                    ...weight,
+                    serviceType: servType,
+                    firstClassMailType: "",
+                    machinable: "",
+                    container: "VARIABLE"
+                });
+            }
+        });
+    } else if (weight.serviceType.toUpperCase() == "ALL") { //Available Types: First Class, Priority, Priority Mail Express, Retail Ground, Parcel Select Ground, Media
+        ["First Class", "Priority", "Priority Mail Express", "Retail Ground", "Parcel Select Ground", "Media"].forEach((servType) => {
+            if (servType.startsWith("Priority")) { //Only applicable to priority services
+                if (weight.packageType.toUpperCase() == "FLATRATE" || weight.packageType.toUpperCase() == "ALL") {
+                    ["FLAT RATE ENVELOPE", "PADDED FLAT RATE ENVELOPE", "LEGAL FLAT RATE ENVELOPE", "SM FLAT RATE ENVELOPE", "WINDOW FLAT RATE ENVELOPE", "GIFT CARD FLAT RATE ENVELOPE", "SM FLAT RATE BOX", "MD FLAT RATE BOX", "LG FLAT RATE BOX"].forEach((flatType) => {
+                        packages.push({
+                            ...weight,
+                            serviceType: servType,
+                            firstClassMailType: "",
+                            machinable: "",
+                            container: flatType
+                        });
+                    });
+                }
+            } else {
+                if (servType == "First Class") {
+                    getFCMType(weight.packageType).forEach((fcmType) => {
+                        packages.push({
+                            ...weight,
+                            serviceType: servType,
+                            firstClassMailType: fcmType,
+                            container: "VARIABLE"
+                        });
+                    })
+                } else {
+                    packages.push({
+                        ...weight,
+                        serviceType: servType,
+                        machinable: "",
+                        container: "VARIABLE"
+                    });
+                }
+            }
+        });
     }
 
-    
-    if (weight.serviceType.toUpperCase() == "PRIORITY") {
-        let xmlBody = `\
-<RateV4Request USERID="${process.env.USPS_ID}">\
-<Revision>2</Revision>\
-<Package ID="1ST">\
-<Service>Priority</Service>\
+    console.log(packages);
+    let xmlBody = `<RateV4Request USERID="${process.env.USPS_ID}"><Revision>2</Revision>`;
+    packages.forEach((pkg) => {
+        xmlBody += `\
+<Package ID="1">\
+<Service>${pkg.serviceType}</Service>\
+<FirstClassMailType>${pkg.firstClassMailType}</FirstClassMailType>\
 <ZipOrigination>${zipStart}</ZipOrigination>\
 <ZipDestination>${zipEnd}</ZipDestination>\
-<Pounds>${weight.pounds}</Pounds>\
-<Ounces>${weight.ounces}</Ounces>\
-<Container></Container>\
-<Value>${weight.price}</Value>\
-</Package>\
-<Package ID="2ND">\
-<Service>Priority Mail Express</Service>\
-<ZipOrigination>${zipStart}</ZipOrigination>\
-<ZipDestination>${zipEnd}</ZipDestination>\
-<Pounds>${weight.pounds}</Pounds>\
-<Ounces>${weight.ounces}</Ounces>\
-<Container></Container>\
-<Value>${weight.price}</Value>\
-</Package>\
-</RateV4Request>`;
-        return new Promise((resolve, reject) => {
-            getAPIData(apiName, xmlBody).then((res) => {
-                if (!res) reject();
-                resolve(res.RateV4Response.Package);
+<Pounds>${pkg.pounds}</Pounds>\
+<Ounces>${pkg.ounces}</Ounces>\
+<Container>${pkg.container}</Container>\
+<Width>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.width : ""}</Width>
+<Length>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.length : ""}</Length>
+<Height>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.height : ""}</Height>
+<Value>${pkg.price}</Value>\
+<Machinable>${pkg.machinable}</Machinable>\
+<ReturnServiceInfo>TRUE</ReturnServiceInfo>\
+</Package>`
+    });
+    xmlBody += "</RateV4Request>";
+    return new Promise((resolve, reject) => {
+        if (packages.length == 0) {
+            resolve({
+                err: "No valid combinations"
             });
+            return;
+        }
+        getAPIData(apiName, xmlBody).then((res) => {
+            if (!res) {
+                reject();
+                return;
+            }
+            resolve(res.RateV4Response.Package);
         });
-    } else {
-        let xmlBody = `\
-<RateV4Request USERID="${process.env.USPS_ID}">\
-<Revision>2</Revision>\
-<Package ID="1ST">\
-<Service>${weight.serviceType}</Service>\
-<FirstClassMailType>${firstClassMailType}</FirstClassMailType>\
-<ZipOrigination>${zipStart}</ZipOrigination>\
-<ZipDestination>${zipEnd}</ZipDestination>\
-<Pounds>${weight.pounds}</Pounds>\
-<Ounces>${weight.ounces}</Ounces>\
-<Container></Container>\
-<Value>${weight.price}</Value>\
-<Machinable>${machinable}</Machinable>\
-</Package>\
-</RateV4Request>`;
-        return new Promise((resolve, reject) => {
-            getAPIData(apiName, xmlBody).then((res) => {
-                if (!res) reject();
-                resolve(res.RateV4Response.Package);
-            });
-        });
-    }
+    });
 }
 
 /**
@@ -156,12 +208,12 @@ const getAPIData = (apiName, xmlReq) => {
 }
 
 exports.handler = async (ev, context) => {
-    console.log(ev.headers);
-    console.log(process.env.USPS_ID);
     if (ev.headers["content-type"] != "application/json") {
         return {
             statusCode: 400,
-            body: JSON.stringify({err:"Cannot parse content type other than JSON"})
+            body: JSON.stringify({
+                err: "Cannot parse content type other than JSON"
+            })
         }
     }
     let body = JSON.parse(ev.body);
@@ -172,7 +224,9 @@ exports.handler = async (ev, context) => {
                 if (!body.country || !body.weight) {
                     return {
                         statusCode: 400,
-                        body: JSON.stringify({err:"International requests must include both country string and weight object"})
+                        body: JSON.stringify({
+                            err: "International requests must include both country string and weight object"
+                        })
                     }
                 }
                 resp = await getInternationalPrice(body.country, body.weight)
@@ -180,7 +234,9 @@ exports.handler = async (ev, context) => {
                 console.log("Error! ", e);
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({err:"Error in processing request"})
+                    body: JSON.stringify({
+                        err: "Error in processing request"
+                    })
                 }
             }
             return {
@@ -192,7 +248,9 @@ exports.handler = async (ev, context) => {
                 if (!body.zipStart || !body.zipEnd || !body.weight) {
                     return {
                         statusCode: 400,
-                        body: JSON.stringify({err:"Domestic requests must include starting and ending zip strings and weight object"})
+                        body: JSON.stringify({
+                            err: "Domestic requests must include starting and ending zip strings and weight object"
+                        })
                     }
                 }
                 resp = await getDomesticPrice(body.zipStart, body.zipEnd, body.weight)
@@ -200,7 +258,9 @@ exports.handler = async (ev, context) => {
                 console.log("Error! ", e);
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({err:"Error in processing request"})
+                    body: JSON.stringify({
+                        err: "Error in processing request"
+                    })
                 }
             }
             return {
@@ -210,7 +270,9 @@ exports.handler = async (ev, context) => {
         default:
             return {
                 statusCode: 400,
-                body: JSON.stringify({err:"Type must be either domestic or international"})
+                body: JSON.stringify({
+                    err: "Type must be either domestic or international"
+                })
             }
     }
 }
