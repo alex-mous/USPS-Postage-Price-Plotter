@@ -2,11 +2,7 @@ const parseString = require("xml2js").parseString;
 const fetch = require("node-fetch");
 const { URLSearchParams } = require("url");
 
-const config = require("../config.json");
-
 const baseUrl = "http://production.shippingapis.com/ShippingAPI.dll"; //Base URL
-
-
 
 /**
  * Get the price based on a country
@@ -20,7 +16,7 @@ const getInternationalPrice = (country, weight) => {
     let apiName = "IntlRateV2"; //Name of API
     //Request body
     let xmlBody = `\
-<IntlRateV2Request USERID="${config.USPS_ID}">\
+<IntlRateV2Request USERID="${process.env.USPS_ID}">\
 <Revision>2</Revision>\
 <Package ID="1ST">\
 <Pounds>${weight.pounds}</Pounds>\
@@ -79,7 +75,7 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
     
     if (weight.serviceType.toUpperCase() == "PRIORITY") {
         let xmlBody = `\
-<RateV4Request USERID="${config.USPS_ID}">\
+<RateV4Request USERID="${process.env.USPS_ID}">\
 <Revision>2</Revision>\
 <Package ID="1ST">\
 <Service>Priority</Service>\
@@ -108,7 +104,7 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
         });
     } else {
         let xmlBody = `\
-<RateV4Request USERID="${config.USPS_ID}">\
+<RateV4Request USERID="${process.env.USPS_ID}">\
 <Revision>2</Revision>\
 <Package ID="1ST">\
 <Service>${weight.serviceType}</Service>\
