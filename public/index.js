@@ -337,14 +337,6 @@ window.onload = () => {
         center: defaultPosition,
         zoom: 4.25
     });
-
-    let isDomestic = true;
-    document.querySelectorAll(".shippingTypeRadio").forEach(radBtn => { //Set up menu action for toggling between international/domestic
-        radBtn.onchange = () => { //Handle form domestic/international switch
-            toggleDomesticInternationalForm(isDomestic, false);
-            isDomestic = !isDomestic;
-        }
-    });
     
     //Create the home marker
     let marker = document.createElement("I");
@@ -394,10 +386,6 @@ window.onload = () => {
                 });
             }
         });
-    }
-
-    if (!destMarkerLoc) {
-        toggleDomesticInternationalForm(false, true);
     }
     
     map.on("click", (e) => {
@@ -491,4 +479,12 @@ window.onload = () => {
         });
         console.log("Form updated");
     }
+
+    let isDomestic = true;
+    document.querySelectorAll(".shippingTypeRadio").forEach(radBtn => { //Set up menu action for toggling between international/domestic
+        radBtn.onchange = () => { //Handle form domestic/international switch
+            toggleDomesticInternationalForm(isDomestic, false);
+            isDomestic = !isDomestic;
+        }
+    });
 }
