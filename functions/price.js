@@ -15,23 +15,30 @@ const baseUrl = "http://production.shippingapis.com/ShippingAPI.dll"; //Base URL
 const getInternationalPrice = (country, weight) => {
     let apiName = "IntlRateV2"; //Name of API
     //Request body
-    let xmlBody = `\
-<IntlRateV2Request USERID="${process.env.USPS_ID}">\
-<Revision>2</Revision>\
-<Package ID="1ST">\
-<Pounds>${weight.pounds}</Pounds>\
-<Ounces>${weight.ounces}</Ounces>\
-<MailType>${weight.packageType}</MailType>\
-<ValueOfContents>${weight.price}</ValueOfContents>\
-<Country>${country}</Country>\
-<Container />\
-<Size>REGULAR</Size>\
-</Package>\
+    let xmlBody = `
+<IntlRateV2Request USERID="${process.env.USPS_ID}">
+<Revision>2</Revision>
+<Package ID="1ST">
+<Pounds>${weight.pounds}</Pounds>
+<Ounces>${weight.ounces}</Ounces>
+<Machinable>${weight.machinable}</Machinable>
+<MailType>${weight.packageType}</MailType>
+<ValueOfContents>${weight.price}</ValueOfContents>
+<Country>${country}</Country>
+<Width>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.width : ""}</Width>
+<Length>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.length : ""}</Length>
+<Height>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.height : ""}</Height>
+</Package>
 </IntlRateV2Request>`;
     return new Promise((resolve, reject) => {
         getAPIData(apiName, xmlBody).then((res) => {
             if (!res) reject();
             if (res.Error) reject(res.Error);
+            if (weight.serviceType.toLowerCase() != "all") {
+                res.IntlRateV2Response.Package[0].Service = res.IntlRateV2Response.Package[0].Service.filter((serv) => {
+                    return serv.SvcDescription && serv.SvcDescription[0].toLowerCase().includes(weight.serviceType.replace(" ", "-").toLowerCase());
+                });
+            }
             resolve(res.IntlRateV2Response.Package);
         });
     });

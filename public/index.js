@@ -24,7 +24,7 @@ const HOST = "https://postagepriceplotter.see-making.com";
  * @param {number} price Shipping item price ($)
  * @param {string} machinable Package machinability (TRUE/FALSE)
  * @param {string} serviceType Type of services to select (ALL/PRIORITY/FIRST CLASS)
- * @param {string} packageType Type of packages/parcels to select (ALL/LETTER/LARGEENVELOPE/PACKAGE/FLATRATE)
+ * @param {string} packageType Type of packages/parcels to select (ALL/LETTER/POSTCARD/LARGEENVELOPE/PACKAGE/FLATRATE)
  */
 
 /**
@@ -56,7 +56,7 @@ const getLocationFromGPS = async (lng, lat) => {
     if (!zipCode && !country) { //No country nor zip found - invalid location
         alert("Please select a location within a country");
     }
-    console.log("GET LOC", zipCode,country,countryCode);
+
     return {
         zipCode: zipCode,
         country: country,
@@ -71,7 +71,6 @@ const getLocationFromGPS = async (lng, lat) => {
  * @returns {Array} Array of longitude and latitude or undefined if does not exist
  */
 const getGPSFromLocation = async (loc) => {
-    console.log(loc);
     let data = (await mapboxClient.geocoding.forwardGeocode({
         query: loc.country == "United States" ? loc.zipCode : loc.country,
         countries: [loc.countryCode]
@@ -79,7 +78,6 @@ const getGPSFromLocation = async (loc) => {
         .send())
         .body
         .features;
-    console.log( data);
     return (
         data.filter(n => loc.country == "United States" ? (n.place_type?.[0] == "postcode") : (n.place_type?.[0] == "country"))
             ?.[0]
@@ -98,7 +96,6 @@ const getGPSFromLocation = async (loc) => {
  */
 const getShippingInfo = (startLoc, endLoc, packageDetails) => {
     if (!startLoc || !endLoc || !packageDetails) return;
-    console.log(endLoc);
     console.log("Running shipping info");
     if (!startLoc.zipCode) { //Starting location not inside of US
         alert("Please set the origin marker inside of the United States");
@@ -388,7 +385,8 @@ window.onload = () => {
         });
     }
 
-    if (!destMarkerLoc) {	
+    if (!destMarkerLoc) {
+        console.log("No dest marker - setting default to domestic");
         toggleDomesticInternationalForm(false, true);	
     }
     
@@ -447,7 +445,7 @@ window.onload = () => {
             country: data.get("shippingType") == "domestic" ? "United States" : countryOpt.options[countryOpt.selectedIndex].text, //Get the full name of the country
             countryCode: data.get("shippingType") == "domestic" ? "US" : data.get("destCountry")
         }
-        console.log("TYPE:",data.get("shippingType"),"LOC:",destLoc)
+
         packageDetails = {
             pounds: data.get("pounds"),
             ounces: data.get("ounces"),
