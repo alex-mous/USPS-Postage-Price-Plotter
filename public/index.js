@@ -3,7 +3,7 @@ const ACCESS_TOKEN = 'pk.eyJ1IjoidHN1aG8iLCJhIjoiY2tpb3Y4YmhsMDBhaTJxbXZnNTB3YjN
 mapboxgl.accessToken = ACCESS_TOKEN;
 const mapboxClient = mapboxSdk({ accessToken: ACCESS_TOKEN });
 const defaultPosition = [-95, 39]; //GPS default position - center US (default Zip - 66052)
-const HOST = "http://localhost:8888";//"https://postagepriceplotter.see-making.com";
+const HOST = "http://see-making.home:8888";//"https://postagepriceplotter.see-making.com";
 
 /**
  * Location storage (for starting and ending markers)
@@ -39,7 +39,7 @@ const getLocationFromGPS = async (lng, lat) => {
         .send())
         .body
         .features;
-    let zipcode = data
+    let zipCode = data
         .filter(n => n.place_type?.[0] == "postcode")
         ?.[0]
         ?.text;
@@ -53,11 +53,12 @@ const getLocationFromGPS = async (lng, lat) => {
         ?.properties
         ?.short_code
         ?.toUpperCase();
-    if (!zipcode && !country) { //No country nor zip found - invalid location
+    if (!zipCode && !country) { //No country nor zip found - invalid location
         alert("Please select a location within a country");
     }
+    console.log("GET LOC", zipCode,country,countryCode);
     return {
-        zipCode: zipcode,
+        zipCode: zipCode,
         country: country,
         countryCode: countryCode
     }
@@ -67,19 +68,20 @@ const getLocationFromGPS = async (lng, lat) => {
  * Get the longitude/latitude from the Location
  * 
  * @param {Location} loc Location to decode
- * @param {string} countryName Full country name
  * @returns {Array} Array of longitude and latitude or undefined if does not exist
  */
-const getGPSFromLocation = async (loc, countryName) => {
+const getGPSFromLocation = async (loc) => {
+    console.log(loc);
     let data = (await mapboxClient.geocoding.forwardGeocode({
-        query: loc.zipCode || countryName,
-        countries: [loc.country || "US"]
+        query: loc.country == "United States" ? loc.zipCode : loc.country,
+        countries: [loc.countryCode]
     })
         .send())
         .body
         .features;
+    console.log( data);
     return (
-        data.filter(n => !loc.country ? (n.place_type?.[0] == "postcode") : (n.place_type?.[0] == "country"))
+        data.filter(n => loc.country == "United States" ? (n.place_type?.[0] == "postcode") : (n.place_type?.[0] == "country"))
             ?.[0]
             ?.center
     );
@@ -88,6 +90,7 @@ const getGPSFromLocation = async (loc, countryName) => {
 /**
  * Get the current shipping information based on starting location, destination location, and package information
  * 
+ * @async
  * @param {Location} startLoc Starting location
  * @param {Location} endLoc Ending location
  * @param {PackageDetails} packageDetails Package information
@@ -95,6 +98,7 @@ const getGPSFromLocation = async (loc, countryName) => {
  */
 const getShippingInfo = (startLoc, endLoc, packageDetails) => {
     if (!startLoc || !endLoc || !packageDetails) return;
+    console.log(endLoc);
     console.log("Running shipping info");
     if (!startLoc.zipCode) { //Starting location not inside of US
         alert("Please set the origin marker inside of the United States");
@@ -119,17 +123,24 @@ const getShippingInfo = (startLoc, endLoc, packageDetails) => {
 }
 
 /**
- * Show the API response data in the results box
+ * Get and show the shipping data in the results box
  * 
- * @param {Object} apiResp Response from API
+ * @async
+ * @param {Location} startLoc Starting location
+ * @param {Location} endLoc Ending location
+ * @param {PackageDetails} packageDetails Package information
  */
-const showShippingInfo = (apiResp) => {
+const showShippingInfo = async (startLoc, endLoc, packageDetails) => {
     document.querySelector("#resTable").innerHTML = "";
+    let msgBx = document.querySelector("#resMsg");
+    msgBx.classList.remove("d-none");
+    msgBx.innerHTML = "Loading...";
     $("#optionsTab").tab("dispose");
     $("#resultsTab").tab("show");
-    let msgBx = document.querySelector("#resMsg");
+    
+    let apiResp = await getShippingInfo(startLoc, endLoc, packageDetails);
+
     if (apiResp.err) {
-        msgBx.classList.remove("d-none");
         msgBx.classList.add("text-danger");
         msgBx.innerHTML = "Error: " + apiResp.err;
         return;
@@ -170,6 +181,7 @@ const showShippingInfo = (apiResp) => {
 /**
  * Fetch result from API
  * 
+ * @async
  * @param {Object} body Request body passed to API
  * @returns {Object} API response
  */
@@ -226,13 +238,21 @@ const getBounding = (...markers) => {
 /**
  * Toggle the form for domestic/international
  * 
- * @param {boolean} isDomestic Change to international if true
+ * @param {boolean} toInternational Change to international if true
+ * @param {boolean} toggleRadios Whether to toggle the radio buttons too or not
  */
-const toggleDomesticInternationalForm = (isDomestic) => {
-    document.querySelectorAll(`.shippingDestForms`).forEach((form, i) => { //Open/close form sections
-        form.classList.toggle("d-none", i%2!=isDomestic);
-        form.querySelectorAll("input, select").forEach(inpt => inpt.disabled = i%2!=isDomestic); //Toggle states of inputs to prevent error on submit
+const toggleDomesticInternationalForm = (toInternational, toggleRadios) => {
+    document.querySelectorAll('.shippingDestForms').forEach((form, i) => { //Open/close form sections
+        form.classList.toggle("d-none", i%2!=toInternational);
+        form.querySelectorAll("input, select").forEach(inpt => inpt.disabled = i%2!=toInternational); //Toggle states of inputs to prevent error on submit
     });
+    if (toggleRadios) {
+        if (toInternational) {
+            $("#internationalRadio").parent().button("toggle");
+        } else {
+            $("#domesticRadio").parent().button("toggle");
+        }
+    }
 }
 
 /**
@@ -270,10 +290,10 @@ const addMarkerFromMemory = (mem, marker, map) => {
  */
 const updateDestMarkerLoc = (destMarkerLoc) => {
     if (destMarkerLoc.country == "United States") {
-        toggleDomesticInternationalForm(false);
+        toggleDomesticInternationalForm(false, true);
         document.querySelector("#destZipCode").value = destMarkerLoc.zipCode;
     } else {
-        toggleDomesticInternationalForm(true);
+        toggleDomesticInternationalForm(true, true);
         document.querySelector("#destCountry").value = destMarkerLoc.countryCode;
     }
 }
@@ -296,15 +316,15 @@ window.onload = () => {
     
     if (!packageDetails) {
         packageDetails = { //Set default package details
-            pounds: 0, //0-70
-            ounces: 1, //0-1120
+            pounds: 0,
+            ounces: 1,
             width: 7,
             length: 5,
             height: 1,
-            price: 0, //0-...
-            machinable: "TRUE", //TRUE/FALSE
-            serviceType: "ALL", //ALL, PRIORITY, FIRST CLASS
-            packageType: "ALL" //LETTER, POSTCARD, LARGEENVELOPE, PACKAGE, FLATRATE or (FCM) LETTER, FLAT, PACKAGE SERVICE RETAIL, POSTCARD
+            price: 0,
+            machinable: "TRUE",
+            serviceType: "ALL",
+            packageType: "ALL"
         }
     } else {
         packageDetails = JSON.parse(packageDetails);
@@ -316,6 +336,14 @@ window.onload = () => {
         style: 'mapbox://styles/tsuho/ckiqb4rmv4s0017od9fzbqey0', //'mapbox://styles/tsuho/ckip72uj60c3y17mka9wq9bhh',
         center: defaultPosition,
         zoom: 4.25
+    });
+
+    let isDomestic = true;
+    document.querySelectorAll(".shippingTypeRadio").forEach(radBtn => { //Set up menu action for toggling between international/domestic
+        radBtn.onchange = () => { //Handle form domestic/international switch
+            toggleDomesticInternationalForm(isDomestic, false);
+            isDomestic = !isDomestic;
+        }
     });
     
     //Create the home marker
@@ -329,7 +357,7 @@ window.onload = () => {
             homeMarkerLoc = res;
             window.localStorage.homeMarker = JSON.stringify({ loc: homeMarkerLoc, ...e.target._lngLat });
             updateHomeMarkerLoc(homeMarkerLoc);
-            getShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails)?.then(res => showShippingInfo(res));
+            showShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails);
         });
     });
 
@@ -344,13 +372,14 @@ window.onload = () => {
             destMarkerLoc = res;
             window.localStorage.destMarker = JSON.stringify({ loc: destMarkerLoc, ...e.target._lngLat });
             updateDestMarkerLoc(destMarkerLoc);
-            getShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails)?.then(res => showShippingInfo(res));
+            showShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails);
         });
     });
 
     if (window.localStorage.homeMarker && window.localStorage.destMarker) { //Read markers from memory
         homeMarkerLoc = addMarkerFromMemory(window.localStorage.homeMarker, homeMarker, map);
         destMarkerLoc = addMarkerFromMemory(window.localStorage.destMarker, destMarker, map);
+        console.log("Read locations from memory: Home:", homeMarkerLoc,"Dest: ", destMarkerLoc);
         updateHomeMarkerLoc(homeMarkerLoc);
         updateDestMarkerLoc(destMarkerLoc);
         map.fitBounds(getBounding(homeMarker, destMarker));
@@ -365,6 +394,10 @@ window.onload = () => {
                 });
             }
         });
+    }
+
+    if (!destMarkerLoc) {
+        toggleDomesticInternationalForm(false, true);
     }
     
     map.on("click", (e) => {
@@ -411,14 +444,18 @@ window.onload = () => {
         let data = new FormData(e.target);
         let originLoc = {
             zipCode: data.get("originZipCode"),
-            country: null
+            country: "United States",
+            countryCode: "US"
         }
 
+        let countryOpt = document.querySelector("#destCountry");
+        
         let destLoc = {
             zipCode: data.get("destZipCode"),
-            country: data.get("destCountry")
+            country: data.get("shippingType") == "domestic" ? "United States" : countryOpt.options[countryOpt.selectedIndex].text, //Get the full name of the country
+            countryCode: data.get("shippingType") == "domestic" ? "US" : data.get("destCountry")
         }
-
+        console.log("TYPE:",data.get("shippingType"),"LOC:",destLoc)
         packageDetails = {
             pounds: data.get("pounds"),
             ounces: data.get("ounces"),
@@ -432,9 +469,8 @@ window.onload = () => {
         }
 
         window.localStorage.packageDetails = JSON.stringify(packageDetails);
-        let countryOpt = document.querySelector("#destCountry");
-        let destCountryName = !destLoc.country ? "United States" : countryOpt.options[countryOpt.selectedIndex].text; //Get the full name of the country
-        getGPSFromLocation(originLoc, "United States").then(loc => {
+
+        let p1 = getGPSFromLocation(originLoc).then(loc => {
             if (!loc) {
                 alert("Invalid origin zip code");
                 return;
@@ -442,7 +478,7 @@ window.onload = () => {
             updateMarker(homeMarker, loc, map);
             map.fitBounds(getBounding(homeMarker, destMarker));
         });
-        getGPSFromLocation(destLoc, destCountryName).then(loc => {
+        let p2 = getGPSFromLocation(destLoc).then(loc => {
             if (!loc) {
                 alert("Invalid destination country or zip code");
                 return;
@@ -450,15 +486,9 @@ window.onload = () => {
             updateMarker(destMarker, loc, map);
             map.fitBounds(getBounding(homeMarker, destMarker));
         });
-        getShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails)?.then(res => showShippingInfo(res));
+        Promise.all([p1, p2]).then(() => {
+            showShippingInfo(homeMarkerLoc, destMarkerLoc, packageDetails);
+        });
         console.log("Form updated");
     }
-
-    let isDomestic = true;
-    document.querySelectorAll(".shippingTypeRadio").forEach(radBtn => { //Set up menu action for toggling between international/domestic
-        radBtn.onchange = () => { //Handle form domestic/international switch
-            toggleDomesticInternationalForm(isDomestic);
-            isDomestic = !isDomestic;
-        }
-    });
 }

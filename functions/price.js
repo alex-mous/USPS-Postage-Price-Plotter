@@ -39,23 +39,24 @@ const getInternationalPrice = (country, weight) => {
 
 
 /**
- * Convert package type into applicable First Class Mail types
+ * Convert package type into applicable First Class Mail types and ensure weight is valid
  * 
- * @param {string} pkgType Package type name
+ * @param {Object} weight Weight object of package
  * @returns {Array<string>} FCM types as array
  */
-const getFCMType = (pkgType) => {
-    switch (pkgType.toUpperCase()) {
+const getFCMType = (weight) => {
+    switch (weight.packageType.toUpperCase()) {
         case "LETTER":
-            return ["LETTER"];
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["LETTER"];
         case "LARGEENVELOPE":
-            return ["FLAT"];
+            if (weight.ounces <= 13 && weight.pounds == 0) return ["FLAT"];
         case "PACKAGE":
-            return ["PACKAGE SERVICE RETAIL"];
+            if (weight.ounces <= 13 && weight.pounds == 0)return ["PACKAGE SERVICE RETAIL"];
         case "ALL":
-            return ["LETTER", "FLAT", "POSTCARD", "PACKAGE SERVICE RETAIL"];
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["LETTER", "FLAT", "POSTCARD", "PACKAGE SERVICE RETAIL"];
+            else if (weight.ounces <= 13 && weight.pounds == 0) return ["FLAT", "PACKAGE SERVICE RETAIL"];
         case "POSTCARD":
-            return ["POSTCARD"];
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["POSTCARD"];
         default:
             return [];
     }
@@ -76,16 +77,17 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
     let packages = []; //Store multiple requests
 
     if (weight.serviceType.toUpperCase() == "FIRST CLASS" || weight.packageType.toUpperCase() == "POSTCARD") {
-        getFCMType(weight.packageType).forEach((fcmType) => {
+        getFCMType(weight).forEach((fcmType) => {
             packages.push({
                 ...weight,
+                serviceType: "FIRST CLASS",
                 firstClassMailType: fcmType,
                 container: "VARIABLE"
             });
         });
     } else if (weight.serviceType.toUpperCase() == "PRIORITY") {
         ["Priority", "Priority Mail Express"].forEach((servType) => {
-            if (weight.packageType.toUpperCase() == "FLATRATE") {
+            if (weight.packageType.toUpperCase() == "FLATRATE" || weight.packageType.toUpperCase() == "ALL") {
                 ["FLAT RATE ENVELOPE", "PADDED FLAT RATE ENVELOPE", "LEGAL FLAT RATE ENVELOPE", "SM FLAT RATE ENVELOPE", "WINDOW FLAT RATE ENVELOPE", "GIFT CARD FLAT RATE ENVELOPE", "SM FLAT RATE BOX", "MD FLAT RATE BOX", "LG FLAT RATE BOX"].forEach((flatType) => {
                     packages.push({
                         ...weight,
@@ -118,13 +120,22 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
                             container: flatType
                         });
                     });
+                } else {
+                    packages.push({
+                        ...weight,
+                        serviceType: servType,
+                        firstClassMailType: "",
+                        machinable: "",
+                        container: "VARIABLE"
+                    });
                 }
             } else {
                 if (servType == "First Class") {
-                    getFCMType(weight.packageType).forEach((fcmType) => {
+                    getFCMType(weight).forEach((fcmType) => {
                         packages.push({
                             ...weight,
                             serviceType: servType,
+                            packageType: "",
                             firstClassMailType: fcmType,
                             container: "VARIABLE"
                         });
@@ -133,7 +144,7 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
                     packages.push({
                         ...weight,
                         serviceType: servType,
-                        machinable: "",
+                        firstClassMailType: "",
                         container: "VARIABLE"
                     });
                 }
@@ -143,25 +154,26 @@ const getDomesticPrice = (zipStart, zipEnd, weight) => {
 
     console.log(packages);
     let xmlBody = `<RateV4Request USERID="${process.env.USPS_ID}"><Revision>2</Revision>`;
-    packages.forEach((pkg) => {
-        xmlBody += `\
-<Package ID="1">\
-<Service>${pkg.serviceType}</Service>\
-<FirstClassMailType>${pkg.firstClassMailType}</FirstClassMailType>\
-<ZipOrigination>${zipStart}</ZipOrigination>\
-<ZipDestination>${zipEnd}</ZipDestination>\
-<Pounds>${pkg.pounds}</Pounds>\
-<Ounces>${pkg.ounces}</Ounces>\
-<Container>${pkg.container}</Container>\
-<Width>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.width : ""}</Width>
-<Length>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.length : ""}</Length>
-<Height>${pkg.packageType.toUpperCase() == "PACKAGE" ? pkg.height : ""}</Height>
-<Value>${pkg.price}</Value>\
-<Machinable>${pkg.machinable}</Machinable>\
-<ReturnServiceInfo>TRUE</ReturnServiceInfo>\
+    packages.forEach((pkg, i) => {
+        xmlBody += `
+<Package ID="${i}">
+<Service>${pkg.serviceType}</Service>
+<FirstClassMailType>${pkg.firstClassMailType}</FirstClassMailType>
+<ZipOrigination>${zipStart}</ZipOrigination>
+<ZipDestination>${zipEnd}</ZipDestination>
+<Pounds>${pkg.pounds}</Pounds>
+<Ounces>${pkg.ounces}</Ounces>
+<Container>${pkg.container}</Container>
+<Width>${pkg.packageType.toUpperCase() != "LETTER" && pkg.packageType.toUpperCase() != "POSTCARD" ? pkg.width : ""}</Width>
+<Length>${pkg.packageType.toUpperCase() != "LETTER" && pkg.packageType.toUpperCase() != "POSTCARD" ? pkg.length : ""}</Length>
+<Height>${pkg.packageType.toUpperCase() != "LETTER" && pkg.packageType.toUpperCase() != "POSTCARD" ? pkg.height : ""}</Height>
+<Value>${pkg.price}</Value>
+<Machinable>${pkg.machinable}</Machinable>
+<ReturnServiceInfo>TRUE</ReturnServiceInfo>
 </Package>`
     });
     xmlBody += "</RateV4Request>";
+    console.log(xmlBody);
     return new Promise((resolve, reject) => {
         if (packages.length == 0) {
             resolve({
