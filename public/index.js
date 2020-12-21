@@ -3,7 +3,7 @@ const ACCESS_TOKEN = 'pk.eyJ1IjoidHN1aG8iLCJhIjoiY2tpb3Y4YmhsMDBhaTJxbXZnNTB3YjN
 mapboxgl.accessToken = ACCESS_TOKEN;
 const mapboxClient = mapboxSdk({ accessToken: ACCESS_TOKEN });
 const defaultPosition = [-95, 39]; //GPS default position - center US (default Zip - 66052)
-const HOST = "http://see-making.home:8888";//"https://postagepriceplotter.see-making.com";
+const HOST = "https://postagepriceplotter.see-making.com";
 
 /**
  * Location storage (for starting and ending markers)
