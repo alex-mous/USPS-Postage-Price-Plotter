@@ -1,6 +1,6 @@
 {
   "name": "postage-price-plotter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shipping calculator for domestic and international shipping with a map interface",
   "main": "index.js",
   "scripts": {
