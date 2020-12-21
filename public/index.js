@@ -387,6 +387,10 @@ window.onload = () => {
             }
         });
     }
+
+    if (!destMarkerLoc) {	
+        toggleDomesticInternationalForm(false, true);	
+    }
     
     map.on("click", (e) => {
         if (!homeMarker.getLngLat()) { //Home marker not set
