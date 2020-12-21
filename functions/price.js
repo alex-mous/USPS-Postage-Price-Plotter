@@ -5,6 +5,32 @@ const { URLSearchParams } = require("url");
 const baseUrl = "http://production.shippingapis.com/ShippingAPI.dll"; //Base URL
 
 /**
+ * Convert package type into applicable international mail types
+ * 
+ * @param {Object} weight Weight object of package
+ * @returns {Array<string>} Intl types as array
+ */
+const getIntlType = (weight) => {
+    switch (weight.packageType.toUpperCase()) {
+        case "LETTER":
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["LETTER"];
+        case "LARGEENVELOPE":
+            if (weight.ounces <= 16 && weight.pounds == 0) return ["LARGEENVELOPE", "ENVELOPE"];
+        case "PACKAGE":
+            if (weight.ounces <= 16 && weight.pounds == 0) return ["PACKAGE"];
+        case "ALL":
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["LETTER", "POSTCARDS", "PACKAGE", "LARGEENVELOPE"];
+            else return ["PACKAGE", "LARGEENVELOPE"];
+        case "POSTCARD":
+            if (weight.ounces <= 3.5 && weight.pounds == 0) return ["POSTCARDS"];
+        case "FLATRATE":
+            return ["FLATRATE"];
+        default:
+            return [];
+    }
+}
+
+/**
  * Get the price based on a country
  * 
  * @param {string} country Country name
@@ -17,20 +43,30 @@ const getInternationalPrice = (country, weight) => {
     //Request body
     let xmlBody = `
 <IntlRateV2Request USERID="${process.env.USPS_ID}">
-<Revision>2</Revision>
-<Package ID="1ST">
+<Revision>2</Revision>`;
+    getIntlType(weight).forEach((intlType, i) => {
+        xmlBody += `
+<Package ID="${i}">
 <Pounds>${weight.pounds}</Pounds>
 <Ounces>${weight.ounces}</Ounces>
 <Machinable>${weight.machinable}</Machinable>
-<MailType>${weight.packageType}</MailType>
+<MailType>${intlType}</MailType>
 <ValueOfContents>${weight.price}</ValueOfContents>
 <Country>${country}</Country>
-<Width>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.width : ""}</Width>
-<Length>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.length : ""}</Length>
-<Height>${weight.packageType.toUpperCase() != "LETTER" && weight.packageType.toUpperCase() != "POSTCARD" ? weight.height : ""}</Height>
-</Package>
-</IntlRateV2Request>`;
+<Width>${intlType != "LETTER" && intlType != "LARGEENVELOPE" && intlType != "POSTCARDS" ? weight.width : ""}</Width>
+<Length>${intlType != "LETTER" && intlType != "LARGEENVELOPE" && intlType != "POSTCARDS" ? weight.length : ""}</Length>
+<Height>${intlType != "LETTER" && intlType != "LARGEENVELOPE" && intlType != "POSTCARDS" ? weight.height : ""}</Height>
+</Package>`
+    });
+    xmlBody += `</IntlRateV2Request>`;
+    console.log(xmlBody);
     return new Promise((resolve, reject) => {
+        if (xmlBody.length < 95) {
+            resolve({
+                err: "No valid combinations"
+            });
+            return;
+        }
         getAPIData(apiName, xmlBody).then((res) => {
             if (!res) reject();
             if (res.Error) reject(res.Error);

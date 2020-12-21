@@ -3,7 +3,7 @@ const ACCESS_TOKEN = 'pk.eyJ1IjoidHN1aG8iLCJhIjoiY2tpb3Y4YmhsMDBhaTJxbXZnNTB3YjN
 mapboxgl.accessToken = ACCESS_TOKEN;
 const mapboxClient = mapboxSdk({ accessToken: ACCESS_TOKEN });
 const defaultPosition = [-95, 39]; //GPS default position - center US (default Zip - 66052)
-const HOST = "https://postagepriceplotter.see-making.com";
+const HOST = "http://localhost:8888"//postagepriceplotter.see-making.com";
 
 /**
  * Location storage (for starting and ending markers)
@@ -145,28 +145,32 @@ const showShippingInfo = async (startLoc, endLoc, packageDetails) => {
         msgBx.classList.add("d-none");
     }
     console.log("Received result from API: ", apiResp);
-    apiResp.forEach((pkg) => {
-        if (pkg.Error) {
-            console.log("Error from API: ", pkg.Error);
+    let rates = apiResp.reduce((curr, pkg, i) => {
+        console.log(curr, pkg);
+        if (i == 1) {
+            return [...(curr?.Postage || curr?.Service || curr.Error), ...(pkg?.Postage || pkg?.Service || pkg.Error)];
+        } else {
+            return [...curr, ...(pkg?.Postage || pkg?.Service || pkg.Error)];
+        }
+    });
+    if (!rates.length) {
+        rates = [...(rates?.Postage || rates?.Service || rates.Error)]; //Not an array, so create one (if length==1)
+    }
+    rates = rates.sort((a, b) => {
+        let rA = parseFloat(a?.Rate?.[0]) - parseFloat(b?.Rate?.[0]);
+        let rB = parseFloat(a?.Postage?.[0]) - parseFloat(b?.Postage?.[0]);
+        return rA || rB;
+    });
+    rates.forEach((rate) => {
+        if (!rate.Postage && !rate.Rate) {
+            console.log("Error from API: ", rate);
             return;
         }
-        pkg?.Postage //Domestic
-            ?.sort((a,b) => parseFloat(a.Rate[0]) - parseFloat(b.Rate[0]))
-            ?.forEach((res) => {
+                if (rate.Postage !== undefined && rate.SvcDescription === undefined) return; //Not a shipping service
                 let row = document.createElement("TR");
-                let name = new DOMParser().parseFromString(res.MailService[0], "text/html").documentElement.textContent; //Parse HTML from escapes
-                row.innerHTML = `<td>${name}</td><td>$${decodeURIComponent(res.Rate[0])}</td>`;
+                let name = new DOMParser().parseFromString(rate?.MailService?.[0] || rate?.SvcDescription?.[0], "text/html").documentElement.textContent; //Parse HTML from escapes
+                row.innerHTML = `<td>${name}</td><td>$${decodeURIComponent(rate?.Rate?.[0] || rate?.Postage?.[0])}</td>`;
                 document.querySelector("#resTable").appendChild(row);
-            });
-        pkg?.Service //International
-            ?.sort((a,b) => parseFloat(a.Postage[0]) - parseFloat(b.Postage[0]))
-            ?.forEach((res) => {
-                if (!res.SvcDescription) return; //Not a shipping service
-                let row = document.createElement("TR");
-                let name = new DOMParser().parseFromString(res.SvcDescription[0], "text/html").documentElement.textContent; //Parse HTML from escapes
-                row.innerHTML = `<td>${name}</td><td>$${decodeURIComponent(res.Postage[0])}</td>`;
-                document.querySelector("#resTable").appendChild(row);
-            });
     });
     if (document.querySelector("#resTable").children.length == 0) {
         let row = document.createElement("TR");
